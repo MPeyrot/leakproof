@@ -11,3 +11,10 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: development
+    ignore:
+      # typescript-eslint does not support TypeScript 7 yet.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      # Types must match the oldest supported Node (engines >= 22).
+      - dependency-name: "@types/node"
+        update-types: [version-update:semver-major]
