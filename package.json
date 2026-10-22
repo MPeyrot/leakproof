@@ -1,0 +1,51 @@
+{
+  "name": "leakproof",
+  "version": "0.1.0",
+  "description": "Check your repo before it goes public. Secrets, personal data, git history.",
+  "keywords": [
+    "secrets",
+    "security",
+    "scanner",
+    "git",
+    "gdpr",
+    "pii",
+    "pre-commit",
+    "cli"
+  ],
+  "license": "MIT",
+  "author": "Peyrot",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MPeyrot/leakproof.git"
+  },
+  "bugs": "https://github.com/MPeyrot/leakproof/issues",
+  "homepage": "https://github.com/MPeyrot/leakproof#readme",
+  "type": "module",
+  "bin": {
+    "leakproof": "dist/cli/main.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run lint && npm run typecheck && npm test && npm run build"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "22.20.5",
+    "eslint": "10.13.0",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.0",
+    "vitest": "5.0.5"
+  }
+}
