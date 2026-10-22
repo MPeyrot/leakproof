@@ -1,6 +1,7 @@
 import type { ContentRule } from "../rules/content-rule.js";
 import { denylistRule } from "../rules/denylist/denylist-term.js";
 import { trackedDenylist } from "../rules/denylist/tracked-denylist.js";
+import { authorPersonalEmail } from "../rules/git-identity/personal-email.js";
 import type { FileRule } from "../rules/file/file-rule.js";
 import { FILE_RULES } from "../rules/file/index.js";
 import { PERSONAL_DATA_RULES } from "../rules/personal-data/index.js";
@@ -19,6 +20,7 @@ export const RULE_IDS: ReadonlySet<string> = new Set([
   ...ALL_FILE_RULES.map((rule) => rule.id),
   ...STATIC_CONTENT_RULES.map((rule) => rule.id),
   denylistRule([]).id,
+  authorPersonalEmail.id,
 ]);
 
 export function buildRuleSet(options: {
