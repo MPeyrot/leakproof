@@ -1,0 +1,7 @@
+- id: leakproof
+  name: leakproof
+  description: Check the staged changes for secrets and personal data before they are committed.
+  entry: leakproof --staged
+  language: node
+  pass_filenames: false
+  always_run: true
