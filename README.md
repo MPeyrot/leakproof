@@ -274,21 +274,17 @@ Text output is colored only on a terminal and when `NO_COLOR` is not set. JSON i
 
 ## Use as a pre-commit hook
 
-Install leakproof in the project (`npm i -D leakproof`), then declare a local hook for the [pre-commit](https://pre-commit.com) framework:
+Install leakproof in the project (`npm i -D leakproof`), then add the hook to your [pre-commit](https://pre-commit.com) configuration:
 
 ```yaml
 repos:
-  - repo: local
+  - repo: https://github.com/MPeyrot/leakproof
+    rev: v0.1.0
     hooks:
       - id: leakproof
-        name: leakproof
-        entry: npx --no-install leakproof --staged
-        language: system
-        pass_filenames: false
-        always_run: true
 ```
 
-The hook runs `leakproof --staged`, so it only reads what you are about to commit. Without the framework, a plain git hook works too. Save this as `.git/hooks/pre-commit` and make it executable (`chmod +x .git/hooks/pre-commit`):
+The hook runs the project's copy of leakproof (`npx --no-install leakproof --staged`) instead of building its own, so the `npm i -D` step is required. It only reads what you are about to commit. Without the framework, a plain git hook works too. Save this as `.git/hooks/pre-commit` and make it executable (`chmod +x .git/hooks/pre-commit`):
 
 ```sh
 #!/bin/sh
