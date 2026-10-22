@@ -16,7 +16,7 @@ export interface FileRuleSettings {
 
 /** A Rule about a file as a whole: its name, location, size or kind of content. */
 export interface FileRule extends RuleMeta {
-  readonly category: "sensitive-file";
+  readonly category: "sensitive-file" | "denylist";
   /**
    * Returns the path to report, which may be a parent directory so that a committed
    * directory yields one Finding rather than one per file, or undefined when it does not match.
