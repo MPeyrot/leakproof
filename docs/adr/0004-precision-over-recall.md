@@ -1,0 +1,3 @@
+# Precision over recall
+
+A noisy scanner gets disabled, and then it catches nothing. leakproof therefore ships only Rules with a low false-positive rate, and any Finding fails the run by default (`--fail-on low`). Detectors that are noisy by nature are left out of the default Rules: IP addresses, phone numbers, internal hostnames, and pure-entropy strings without a `password=`-style keyword. Internal names are better covered by the user's own Denylist. Placeholder values never produce a Finding. There is no inline `leakproof-ignore` comment: every exception goes through the Baseline or the configuration, with a written Reason, so it can be reviewed in one place.

@@ -1,0 +1,3 @@
+# Mask matched values at detection time
+
+A secret printed by the scanner itself is a leak, and on a public repository the CI logs are public too. So the raw matched value never leaves the code that detected it: a Finding only carries a Masked value and a Fingerprint, and has no field for the raw value, which makes it impossible for a reporter to print it by mistake. The mask shows at most a known public provider prefix (`AKIA`, `ghp_`, `sk_live_`), always exactly eight stars so the length is not revealed, and the last four characters only when the value is at least 20 characters long. Personal data (IBAN, e-mails, including git author e-mails) and Denylist terms are masked the same way, the NIR fully, and the matching source line is never printed.
