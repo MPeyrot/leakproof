@@ -57,8 +57,15 @@ function parseEntry(item: unknown, source: string, index: number): BaselineEntry
   return { fingerprint, ruleId, ...(path !== undefined && { path }), reason };
 }
 
-/** Validates the text of a Baseline file. `source` names the file in error messages. */
-export function parseBaseline(text: string, source: string): Baseline {
+/**
+ * Validates the text of a Baseline file. `source` names the file in error messages. With
+ * `requireReasons: false`, empty Reasons are accepted: only for rewriting the Baseline.
+ */
+export function parseBaseline(
+  text: string,
+  source: string,
+  options: { requireReasons?: boolean } = {},
+): Baseline {
   let raw: unknown;
   try {
     raw = JSON.parse(text);
@@ -90,7 +97,7 @@ export function parseBaseline(text: string, source: string): Baseline {
   }
 
   const unjustified = entries.filter(({ reason }) => reason.trim() === "").length;
-  if (unjustified > 0) {
+  if (unjustified > 0 && options.requireReasons !== false) {
     throw new BaselineError(
       `${source}: ${String(unjustified)} ${unjustified === 1 ? "entry has" : "entries have"} no Reason. ` +
         "Every accepted Finding needs a written justification in its reason field (docs/adr/0006)",
@@ -103,8 +110,14 @@ export function parseBaseline(text: string, source: string): Baseline {
  * Reads the Baseline: the repository's `.leakproof-baseline.json` when there is one (an empty
  * Baseline otherwise), or `path` (relative to `cwd`), which must exist.
  */
-export function loadBaseline(options: { repoRoot: string; cwd: string; path?: string }): Baseline {
-  const { repoRoot, cwd, path } = options;
+export function loadBaseline(options: {
+  repoRoot: string;
+  cwd: string;
+  path?: string;
+  /** See `parseBaseline`. */
+  requireReasons?: boolean;
+}): Baseline {
+  const { repoRoot, cwd, path, requireReasons } = options;
   const file = path === undefined ? join(repoRoot, BASELINE_FILE) : resolve(cwd, path);
   const source = path ?? BASELINE_FILE;
   let text: string;
@@ -116,7 +129,7 @@ export function loadBaseline(options: { repoRoot: string; cwd: string; path?: st
     if (missing) throw new BaselineError(`${source}: file not found`);
     throw new BaselineError(`${source}: cannot read the file (${(error as Error).message})`);
   }
-  return parseBaseline(text, source);
+  return parseBaseline(text, source, { ...(requireReasons !== undefined && { requireReasons }) });
 }
 
 export interface BaselineResult {

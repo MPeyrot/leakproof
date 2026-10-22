@@ -117,6 +117,21 @@ describe("parseBaseline", () => {
     );
   });
 
+  it("accepts empty Reasons with requireReasons: false, to rewrite a Baseline", () => {
+    const entries = parseBaseline(text([entry(FP_A, ""), entry(FP_B)]), "b", {
+      requireReasons: false,
+    }).entries;
+    expect(entries.map(({ reason }) => reason)).toEqual(["", "Revoked key kept for the tutorial"]);
+  });
+
+  it("still validates everything else with requireReasons: false", () => {
+    expect(
+      messageOf(() =>
+        parseBaseline(text([entry(FP_A), entry(FP_A)]), "b", { requireReasons: false }),
+      ),
+    ).toBe(`b: duplicate fingerprint ${FP_A}`);
+  });
+
   it("rejects a Reason that is not a string", () => {
     const bad = { ...entry(FP_A), reason: undefined };
     expect(messageOf(() => parseBaseline(text([bad]), "b"))).toMatch(/reason must be a string/);
@@ -147,6 +162,12 @@ describe("loadBaseline", () => {
   it("reads an explicit path relative to the working directory", () => {
     writeFileSync(join(dir, "mine.json"), text([entry(FP_A), entry(FP_B)]));
     expect(loadBaseline({ repoRoot, cwd: dir, path: "mine.json" }).entries).toHaveLength(2);
+  });
+
+  it("loads empty Reasons only with requireReasons: false", () => {
+    writeFileSync(join(repoRoot, BASELINE_FILE), text([entry(FP_A, "")]));
+    expect(messageOf(() => loadBaseline({ repoRoot, cwd: dir }))).toMatch(/no Reason/);
+    expect(loadBaseline({ repoRoot, cwd: dir, requireReasons: false }).entries).toHaveLength(1);
   });
 
   it("fails when an explicit path does not exist", () => {
