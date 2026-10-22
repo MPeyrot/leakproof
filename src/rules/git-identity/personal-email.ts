@@ -1,7 +1,8 @@
 import { maskEmail } from "../../scan/mask.js";
-import type { RuleMeta } from "../rule.js";
+import { isPersonalEmail } from "../personal-data/personal-email.js";
+import type { IdentityRule } from "./identity-rule.js";
 
-export const authorPersonalEmail: RuleMeta & { readonly mask: typeof maskEmail } = {
+export const authorPersonalEmail: IdentityRule = {
   id: "git-identity/personal-email",
   category: "git-identity",
   severity: "medium",
@@ -9,4 +10,5 @@ export const authorPersonalEmail: RuleMeta & { readonly mask: typeof maskEmail }
   advice:
     "Commit with your GitHub noreply address (git config user.email <id>+<login>@users.noreply.github.com) and rewrite past commits with git filter-repo --mailmap before publishing.",
   mask: maskEmail,
+  check: isPersonalEmail,
 };

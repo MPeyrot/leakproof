@@ -73,15 +73,19 @@ export async function* historyFileNames(root: string, since?: string): AsyncGene
   }
 }
 
-/** Each distinct content in the History, once, attributed to the commit that introduced it. */
+/**
+ * Each distinct content in the History, once, attributed to the commit that introduced it.
+ * Ignored paths are dropped first, so a content they share with another path is still read.
+ */
 export async function* historyBlobs(
   root: string,
   settings: ScanSettings,
   since?: string,
+  isIgnored: (path: string) => boolean = () => false,
 ): AsyncGenerator<ScannedFile> {
   const firstSeen = new Map<string, HistoryEntry>();
   for (const entry of await historyEntries(root, since)) {
-    if (!firstSeen.has(entry.oid)) firstSeen.set(entry.oid, entry);
+    if (!isIgnored(entry.path) && !firstSeen.has(entry.oid)) firstSeen.set(entry.oid, entry);
   }
 
   const sizes = await blobSizes(root, [...firstSeen.keys()]);

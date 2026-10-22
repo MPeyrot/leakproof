@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Finding } from "../../src/scan/finding.js";
 import { HYGIENE_RULES } from "../../src/rules/hygiene/index.js";
+import { compileIgnoredPaths } from "../../src/scan/ignored-paths.js";
 import { buildRuleSet } from "../../src/scan/rule-set.js";
 import { scan, type ScanOptions } from "../../src/scan/scan.js";
 import { DEFAULT_SETTINGS } from "../../src/scan/settings.js";
@@ -113,6 +114,80 @@ describe("scan --history", () => {
       }),
     ]);
     expect(JSON.stringify(findings)).not.toContain(personal);
+  });
+});
+
+describe("scan, disabled identity rule", () => {
+  it("reports no author e-mail once git-identity/personal-email is disabled", async () => {
+    repo.commit("hello", { GIT_AUTHOR_EMAIL: fake("fixture.not.real", "@", "gmail.com") });
+    const rules = buildRuleSet({
+      denylist: [],
+      disabledRules: [...HYGIENE_IDS, "git-identity/personal-email"],
+    });
+    expect(await run({ history: true, rules })).toEqual([]);
+  });
+});
+
+describe("scan, Ignored paths", () => {
+  const ignoredPaths = compileIgnoredPaths(["fixtures/**", "server.key"]);
+
+  it("does not scan ignored files of the Worktree", async () => {
+    repo.write("fixtures/a.ts", token);
+    repo.write("server.key", "x");
+    repo.write("src/b.ts", token);
+    const findings = await run({ ignoredPaths });
+    expect(findings.map((f) => f.path)).toEqual(["src/b.ts"]);
+  });
+
+  it("does not scan ignored staged files", async () => {
+    repo.write("fixtures/a.ts", token);
+    repo.write("src/b.ts", token);
+    repo.git("add", "-A");
+    const findings = await run({ target: "staged", ignoredPaths });
+    expect(findings.map((f) => f.path)).toEqual(["src/b.ts"]);
+  });
+
+  it("does not scan the History blobs of ignored paths", async () => {
+    repo.write("fixtures/a.ts", token);
+    repo.write("src/b.ts", `${token}x`);
+    repo.commit("secrets");
+    repo.git("rm", "-rq", "fixtures", "src");
+    repo.commit("clean");
+    const findings = await run({ history: true, ignoredPaths });
+    expect(findings.map((f) => f.path)).toEqual(["src/b.ts"]);
+  });
+
+  it("still scans a History blob that also lives under a path that is not ignored", async () => {
+    repo.write("fixtures/a.ts", token);
+    repo.commit("fixture");
+    repo.write("src/b.ts", token);
+    repo.commit("copy");
+    repo.git("rm", "-rq", "fixtures", "src");
+    repo.commit("clean");
+    const findings = await run({ history: true, ignoredPaths });
+    expect(findings.map((f) => f.path)).toEqual(["src/b.ts"]);
+  });
+
+  it("does not report ignored sensitive file names found in the History", async () => {
+    repo.write("server.key", "x");
+    repo.write("other.key", "x");
+    repo.commit("keys");
+    repo.git("rm", "-q", "server.key", "other.key");
+    repo.commit("remove");
+    const findings = await run({ ignoredPaths });
+    expect(findings.map((f) => f.path)).toEqual(["other.key"]);
+  });
+
+  it("still counts ignored files as present for the hygiene Rules", async () => {
+    repo.write("README.md", "# Fixture\n");
+    repo.write(".gitignore", "node_modules\n");
+    repo.write("LICENSE", "MIT\n");
+    const rules = buildRuleSet({ denylist: [] });
+    const findings = await run({
+      rules,
+      ignoredPaths: compileIgnoredPaths(["README.md", "LICENSE"]),
+    });
+    expect(findings).toEqual([]);
   });
 });
 

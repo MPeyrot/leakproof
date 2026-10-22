@@ -1,6 +1,4 @@
-import { authorPersonalEmail } from "../rules/git-identity/personal-email.js";
 import type { RepoInfo } from "../rules/hygiene/repo-rule.js";
-import { isPersonalEmail } from "../rules/personal-data/personal-email.js";
 import { SEVERITIES } from "../rules/rule.js";
 import { historyBlobs, historyFileNames, historyIdentities } from "../targets/history.js";
 import type { ScannedFile } from "../targets/scanned-file.js";
@@ -20,6 +18,8 @@ export interface ScanOptions {
   readonly since?: string;
   readonly settings: ScanSettings;
   readonly rules: RuleSet;
+  /** True for the repository-relative paths that are never scanned (Ignored paths). */
+  readonly ignoredPaths?: (path: string) => boolean;
 }
 
 const STILL_IN_HISTORY =
@@ -53,7 +53,7 @@ class FindingCollector {
 }
 
 export async function scan(options: ScanOptions): Promise<Finding[]> {
-  const { root, settings, rules, since } = options;
+  const { root, settings, rules, since, ignoredPaths = () => false } = options;
   const collector = new FindingCollector();
   const scanAll = async (
     files: AsyncIterable<ScannedFile>,
@@ -61,6 +61,7 @@ export async function scan(options: ScanOptions): Promise<Finding[]> {
   ) => {
     for await (const file of files) {
       onFile?.(file);
+      if (ignoredPaths(file.path)) continue;
       for (const finding of scanFile(file, rules, settings)) collector.add(finding);
     }
   };
@@ -82,23 +83,19 @@ export async function scan(options: ScanOptions): Promise<Finding[]> {
   }
 
   if (options.history) {
-    await scanAll(historyBlobs(root, settings, since));
+    await scanAll(historyBlobs(root, settings, since, ignoredPaths));
     for (const { email, commit } of await historyIdentities(root, since)) {
-      if (isPersonalEmail(email)) {
-        collector.add(
-          createFinding({
-            rule: authorPersonalEmail,
-            commit,
-            value: email,
-            mask: authorPersonalEmail.mask,
-          }),
-        );
+      for (const rule of rules.identityRules) {
+        if (rule.check(email)) {
+          collector.add(createFinding({ rule, commit, value: email, mask: rule.mask }));
+        }
       }
     }
   }
 
   // Cheap pass on names only: catches sensitive files deleted or ignored since (ADR 0007).
   for await (const file of historyFileNames(root, since)) {
+    if (ignoredPaths(file.path)) continue;
     for (const finding of scanFile(file, { ...rules, contentRules: [] }, settings)) {
       const gone = finding.path === undefined || !worktreePaths.has(finding.path);
       collector.add(gone ? { ...finding, advice: STILL_IN_HISTORY } : finding);

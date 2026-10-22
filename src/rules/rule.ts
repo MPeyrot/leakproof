@@ -2,6 +2,10 @@
 export const SEVERITIES = ["critical", "high", "medium", "low"] as const;
 export type Severity = (typeof SEVERITIES)[number];
 
+export function parseSeverity(text: string): Severity | undefined {
+  return SEVERITIES.find((severity) => severity === text);
+}
+
 export type Category =
   "sensitive-file" | "secret" | "personal-data" | "denylist" | "git-identity" | "hygiene";
 
