@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Finding } from "../../src/scan/finding.js";
+import { HYGIENE_RULES } from "../../src/rules/hygiene/index.js";
 import { buildRuleSet } from "../../src/scan/rule-set.js";
 import { scan, type ScanOptions } from "../../src/scan/scan.js";
 import { DEFAULT_SETTINGS } from "../../src/scan/settings.js";
@@ -16,13 +17,16 @@ afterEach(() => {
   repo.remove();
 });
 
+/** Hygiene is off by default so that other tests only see the Findings they are about. */
+const HYGIENE_IDS = HYGIENE_RULES.map((rule) => rule.id);
+
 function run(options: Partial<ScanOptions> = {}): Promise<Finding[]> {
   return scan({
     root: repo.dir,
     target: "worktree",
     history: false,
     settings: DEFAULT_SETTINGS,
-    rules: buildRuleSet({ denylist: [] }),
+    rules: buildRuleSet({ denylist: [], disabledRules: HYGIENE_IDS }),
     ...options,
   });
 }
@@ -134,5 +138,48 @@ describe("scan ordering", () => {
       "critical b.ts:1",
       "low .DS_Store:",
     ]);
+  });
+});
+
+describe("scan, repository hygiene", () => {
+  const withHygiene = () => buildRuleSet({ denylist: [] });
+  const hygiene = (findings: Finding[]) => findings.filter((f) => f.category === "hygiene");
+
+  it("reports missing repository files on the Worktree, without a path", async () => {
+    repo.write("src/a.ts", "export {};\n");
+    const findings = hygiene(await run({ rules: withHygiene() }));
+    expect(ids(findings).sort()).toEqual([
+      "hygiene/missing-gitignore",
+      "hygiene/missing-license",
+      "hygiene/missing-readme",
+    ]);
+    expect(findings.every((f) => f.path === undefined && f.line === undefined)).toBe(true);
+  });
+
+  it("reports nothing on the staged target", async () => {
+    repo.write("src/a.ts", "export {};\n");
+    repo.git("add", "src/a.ts");
+    expect(await run({ target: "staged", rules: withHygiene() })).toEqual([]);
+  });
+
+  it("reports nothing when the repository is in good shape", async () => {
+    repo.write(".gitignore", ".env\n");
+    repo.write(".env.example", "A=\n");
+    repo.write("LICENSE", "MIT\n");
+    repo.write("README.md", "# Fixture\n");
+    expect(await run({ rules: withHygiene() })).toEqual([]);
+  });
+
+  it("reports missing .env.example from the .gitignore content", async () => {
+    repo.write(".gitignore", ".env\n");
+    repo.write("LICENSE", "MIT\n");
+    repo.write("README.md", "# Fixture\n");
+    expect(ids(await run({ rules: withHygiene() }))).toEqual(["hygiene/missing-env-example"]);
+  });
+
+  it("skips disabled hygiene rules", async () => {
+    repo.write("src/a.ts", "export {};\n");
+    const rules = buildRuleSet({ denylist: [], disabledRules: ["hygiene/missing-license"] });
+    expect(ids(hygiene(await run({ rules })))).not.toContain("hygiene/missing-license");
   });
 });

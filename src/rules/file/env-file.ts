@@ -2,6 +2,11 @@ import { basename, type FileRule } from "./file-rule.js";
 
 const TEMPLATE_SUFFIXES = new Set(["example", "sample", "template", "dist", "defaults"]);
 
+/** True for an env template (`.env.example`), which is meant to be committed. */
+export function isEnvTemplate(name: string): boolean {
+  return name.startsWith(".env.") && TEMPLATE_SUFFIXES.has(name.slice(".env.".length));
+}
+
 export const envFile: FileRule = {
   id: "sensitive-file/env-file",
   category: "sensitive-file",
@@ -11,9 +16,7 @@ export const envFile: FileRule = {
   check: ({ path }) => {
     const name = basename(path);
     if (name === ".env" || name === ".envrc") return path;
-    if (name.startsWith(".env.")) {
-      return TEMPLATE_SUFFIXES.has(name.slice(".env.".length)) ? undefined : path;
-    }
+    if (name.startsWith(".env.")) return isEnvTemplate(name) ? undefined : path;
     return name.endsWith(".env") && name.length > ".env".length ? path : undefined;
   },
 };

@@ -1,4 +1,5 @@
 import { authorPersonalEmail } from "../rules/git-identity/personal-email.js";
+import type { RepoInfo } from "../rules/hygiene/repo-rule.js";
 import { isPersonalEmail } from "../rules/personal-data/personal-email.js";
 import { SEVERITIES } from "../rules/rule.js";
 import { historyBlobs, historyFileNames, historyIdentities } from "../targets/history.js";
@@ -54,9 +55,12 @@ class FindingCollector {
 export async function scan(options: ScanOptions): Promise<Finding[]> {
   const { root, settings, rules, since } = options;
   const collector = new FindingCollector();
-  const scanAll = async (files: AsyncIterable<ScannedFile>, onFile?: (path: string) => void) => {
+  const scanAll = async (
+    files: AsyncIterable<ScannedFile>,
+    onFile?: (file: ScannedFile) => void,
+  ) => {
     for await (const file of files) {
-      onFile?.(file.path);
+      onFile?.(file);
       for (const finding of scanFile(file, rules, settings)) collector.add(finding);
     }
   };
@@ -67,7 +71,15 @@ export async function scan(options: ScanOptions): Promise<Finding[]> {
   }
 
   const worktreePaths = new Set<string>();
-  await scanAll(worktreeFiles(root, settings), (path) => worktreePaths.add(path));
+  let gitignore: string | undefined;
+  await scanAll(worktreeFiles(root, settings), (file) => {
+    worktreePaths.add(file.path);
+    if (file.path === ".gitignore") gitignore = file.content;
+  });
+  const repo: RepoInfo = { paths: worktreePaths, ...(gitignore !== undefined && { gitignore }) };
+  for (const rule of rules.repoRules) {
+    if (rule.check(repo)) collector.add(createFinding({ rule }));
+  }
 
   if (options.history) {
     await scanAll(historyBlobs(root, settings, since));
