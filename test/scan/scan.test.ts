@@ -245,10 +245,13 @@ describe("scan, repository hygiene", () => {
     expect(await run({ rules: withHygiene() })).toEqual([]);
   });
 
-  it("reports missing .env.example from the .gitignore content", async () => {
-    repo.write(".gitignore", ".env\n");
+  it("reports a missing .env.example only when an ignored .env exists on disk", async () => {
+    repo.write(".gitignore", ".env\nnode_modules/\n");
     repo.write("LICENSE", "MIT\n");
     repo.write("README.md", "# Fixture\n");
+    repo.write("node_modules/pkg/.env", "A=1\n");
+    expect(await run({ rules: withHygiene() })).toEqual([]);
+    repo.write(".env", "A=1\n");
     expect(ids(await run({ rules: withHygiene() }))).toEqual(["hygiene/missing-env-example"]);
   });
 

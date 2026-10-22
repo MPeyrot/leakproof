@@ -3,7 +3,7 @@ import { SEVERITIES } from "../rules/rule.js";
 import { historyBlobs, historyFileNames, historyIdentities } from "../targets/history.js";
 import type { ScannedFile } from "../targets/scanned-file.js";
 import { stagedFiles } from "../targets/staged.js";
-import { worktreeFiles } from "../targets/worktree.js";
+import { gitIgnoredFiles, worktreeFiles } from "../targets/worktree.js";
 import { createFinding, type Finding } from "./finding.js";
 import type { RuleSet } from "./rule-set.js";
 import { scanFile } from "./scan-file.js";
@@ -72,14 +72,15 @@ export async function scan(options: ScanOptions): Promise<Finding[]> {
   }
 
   const worktreePaths = new Set<string>();
-  let gitignore: string | undefined;
-  await scanAll(worktreeFiles(root, settings), (file) => {
-    worktreePaths.add(file.path);
-    if (file.path === ".gitignore") gitignore = file.content;
-  });
-  const repo: RepoInfo = { paths: worktreePaths, ...(gitignore !== undefined && { gitignore }) };
-  for (const rule of rules.repoRules) {
-    if (rule.check(repo)) collector.add(createFinding({ rule }));
+  await scanAll(worktreeFiles(root, settings), (file) => worktreePaths.add(file.path));
+  if (rules.repoRules.length > 0) {
+    const repo: RepoInfo = {
+      paths: worktreePaths,
+      gitIgnored: new Set(await gitIgnoredFiles(root)),
+    };
+    for (const rule of rules.repoRules) {
+      if (rule.check(repo)) collector.add(createFinding({ rule }));
+    }
   }
 
   if (options.history) {

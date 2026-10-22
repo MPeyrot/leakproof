@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { HYGIENE_RULES } from "../../src/rules/hygiene/index.js";
 import type { RepoInfo } from "../../src/rules/hygiene/repo-rule.js";
 
-function violates(id: string, paths: string[], gitignore?: string): boolean {
+function violates(id: string, paths: string[], gitIgnored: string[] = []): boolean {
   const found = HYGIENE_RULES.find((r) => r.id === id);
   if (found === undefined) throw new Error(`no rule ${id}`);
-  const repo: RepoInfo = { paths: new Set(paths), ...(gitignore !== undefined && { gitignore }) };
+  const repo: RepoInfo = { paths: new Set(paths), gitIgnored: new Set(gitIgnored) };
   return found.check(repo);
 }
 
@@ -73,26 +73,25 @@ describe("hygiene/missing-readme", () => {
 describe("hygiene/missing-env-example", () => {
   const id = "hygiene/missing-env-example";
 
-  it.each([".env", ".env*", ".env.*", "*.env", ".env.local", "/.env", "**/.env", "  .env  "])(
-    "fires when %s is ignored and no template exists",
-    (line) => {
-      expect(violates(id, [".gitignore", "a.ts"], `node_modules\n${line}\n`)).toBe(true);
+  it.each([".env", ".env.local", "api/.env", "apps/web/.env.production"])(
+    "fires when %s sits on disk, ignored by git, and no template is tracked",
+    (path) => {
+      expect(violates(id, [".gitignore", "a.ts"], ["node_modules/", path])).toBe(true);
     },
   );
 
   it("does not fire when a template is tracked, at any depth", () => {
-    expect(violates(id, [".gitignore", ".env.example"], ".env\n")).toBe(false);
-    expect(violates(id, [".gitignore", "config/.env.example"], ".env\n")).toBe(false);
-    expect(violates(id, [".gitignore", "api/.env.sample"], ".env\n")).toBe(false);
+    expect(violates(id, [".env.example"], [".env"])).toBe(false);
+    expect(violates(id, ["config/.env.example"], [".env"])).toBe(false);
+    expect(violates(id, ["api/.env.sample"], ["api/.env"])).toBe(false);
   });
 
-  it("does not fire when env files are not ignored", () => {
-    expect(violates(id, [".gitignore"], "node_modules\ndist\n")).toBe(false);
-    expect(violates(id, [".gitignore"], "# .env\n")).toBe(false);
-    expect(violates(id, [".gitignore"], "!.env.example\n")).toBe(false);
+  it("does not fire when the project only ignores env files as a precaution", () => {
+    expect(violates(id, [".gitignore", "a.ts"])).toBe(false);
+    expect(violates(id, [".gitignore"], ["node_modules/", "dist/", ".DS_Store"])).toBe(false);
   });
 
-  it("does not fire without a .gitignore", () => {
-    expect(violates(id, ["a.ts"])).toBe(false);
+  it("does not count ignored templates, .envrc or env-like directories", () => {
+    expect(violates(id, ["a.ts"], [".env.example", ".envrc", ".env/", "my.env.ts"])).toBe(false);
   });
 });

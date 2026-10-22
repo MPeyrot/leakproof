@@ -28,6 +28,19 @@ async function lfsPaths(root: string, paths: readonly string[]): Promise<Set<str
   return lfs;
 }
 
+/** Files on disk that git ignores; an ignored directory is listed once, ending with `/`. */
+export async function gitIgnoredFiles(root: string): Promise<string[]> {
+  const listed = await git(root, [
+    "ls-files",
+    "-z",
+    "--others",
+    "--ignored",
+    "--exclude-standard",
+    "--directory",
+  ]);
+  return splitNul(listed);
+}
+
 /**
  * The Worktree: tracked and untracked files, minus those excluded by .gitignore.
  * Symbolic links are never followed; their target is scanned as text, as git stores it.
