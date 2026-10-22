@@ -11,6 +11,24 @@ npx leakproof                # one-off run in the current repository
 npm i -D leakproof           # or add it to a project
 ```
 
+### Install from GitHub
+
+npm can also install a tagged release straight from this repository, for example to use a version that is not on npm yet. The `prepare` script compiles `dist/` during the install.
+
+```sh
+npm i -D github:MPeyrot/leakproof#v0.1.0                          # add it to a project
+npx -y --package=github:MPeyrot/leakproof#v0.1.0 leakproof        # one-off run
+```
+
+Keep the `--package=… leakproof` form for one-off runs: `npx github:MPeyrot/leakproof#v0.1.0` alone does not start leakproof. A global install from git (`npm i -g github:…`) fails: the build cannot find TypeScript (`tsc: command not found`). For a global command, link a clone instead:
+
+```sh
+git clone https://github.com/MPeyrot/leakproof.git
+cd leakproof && npm ci && npm run build && npm link
+```
+
+Without `#v0.1.0`, npm installs the current `main`.
+
 ## Usage
 
 Run it from inside a git repository, or pass the path of one:
